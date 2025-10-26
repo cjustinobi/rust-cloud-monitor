@@ -1,10 +1,13 @@
 mod config;
 mod monitor;
+mod routes;
+
+use routes::targets::{get_targets, add_target, remove_target};
 
 use crate::config::Config;
 use crate::monitor::Monitor;
 use tokio::net::TcpListener;
-use axum::{routing::get, Router};
+use axum::{routing::{get, delete}, Router};
 use std::sync::Arc;
 
 #[tokio::main]
@@ -23,13 +26,14 @@ async fn main() -> anyhow::Result<()> {
         m.run().await;
     });
 
-    // Create API server to expose /metrics
-    let app = Router::new().route("/metrics", get({
-        let monitor = monitor.clone();
-        move || async move {
-            monitor.gather_metrics()
-        }
-    }));
+    let app = Router::new()
+        .route("/metrics", get({
+            let monitor = monitor.clone();
+            move || async move { monitor.gather_metrics() }
+        }))
+        .route("/targets", get(get_targets).post(add_target))
+        .route("/targets/{name}", delete(remove_target))
+        .with_state(monitor.clone());
 
     let listener = TcpListener::bind(&config.addr).await?;
     println!("🚀 Metrics server running on http://{}", config.addr);

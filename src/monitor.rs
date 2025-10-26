@@ -2,13 +2,16 @@ use crate::config::Target;
 use prometheus::{IntCounterVec, HistogramVec, Encoder, TextEncoder, register_int_counter_vec, register_histogram_vec};
 use reqwest::Client;
 use tokio::time::{sleep, Duration};
+use tokio::sync::RwLock;
 use tracing::{info, warn, error};
+use std::sync::Arc;
+use anyhow::Result;
 
 pub struct Monitor {
     client: Client,
     request_count: IntCounterVec,
     latency_histogram: HistogramVec,
-    targets: Vec<Target>,
+    pub targets: Arc<RwLock<Vec<Target>>>,
 }
 
 impl Monitor {
@@ -25,12 +28,38 @@ impl Monitor {
                 "Request latency in seconds",
                 &["target"]
             ).unwrap(),
-            targets,
+            targets: Arc::new(RwLock::new(targets)),
+        }
+    }
+
+    pub async fn get_targets(&self) -> Vec<Target> {
+        self.targets.read().await.clone()
+    }
+
+    pub async fn add_target(&self, target: Target) -> Result<(), String> {
+        let mut targets = self.targets.write().await;
+        if targets.iter().any(|t| t.name == target.name) {
+            error!("Target '{}' already exists", target.name);
+            return Err(format!("Target '{}' already exists", target.name));
+        }
+        targets.push(target);
+        Ok(())
+    }
+
+    pub async fn remove_target(&self, name: &str) -> Result<()> {
+        let mut targets = self.targets.write().await;
+
+        if let Some(pos) = targets.iter().position(|t| t.name == name) {
+            targets.remove(pos);
+            Ok(())
+        } else {
+            Err(anyhow::anyhow!("Target '{}' not found", name))
         }
     }
 
     pub async fn run(&self) {
-        for target in &self.targets {
+        let targets = self.targets.read().await.clone();
+        for target in targets {
             let client = self.client.clone();
             let counter = self.request_count.clone();
             let hist = self.latency_histogram.clone();

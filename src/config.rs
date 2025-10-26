@@ -1,8 +1,8 @@
-use serde::Deserialize;
+use serde::{Serialize, Deserialize};
 use std::env;
 use anyhow::Result;
 
-#[derive(Debug, Deserialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct Target {
     pub name: String,
     pub url: String,
