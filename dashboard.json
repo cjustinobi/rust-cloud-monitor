@@ -1,0 +1,128 @@
+{
+  "dashboard": {
+    "title": "Cloud Monitor Dashboard",
+    "uid": "cloud-monitor",
+    "timezone": "browser",
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "5s",
+    "panels": [
+      {
+        "id": 1,
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+        "type": "timeseries",
+        "title": "Requests per Second",
+        "targets": [
+          {
+            "expr": "rate(monitor_requests_total[5m])",
+            "legendFormat": "{{target}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "custom": {
+              "drawStyle": "line",
+              "lineInterpolation": "smooth"
+            },
+            "unit": "reqps"
+          }
+        }
+      },
+      {
+        "id": 2,
+        "gridPos": { "h": 6, "w": 8, "x": 0, "y": 8 },
+        "type": "stat",
+        "title": "Total Requests",
+        "targets": [
+          {
+            "expr": "sum(monitor_requests_total)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 1000, "color": "yellow" },
+                { "value": 5000, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "gridPos": { "h": 6, "w": 8, "x": 8, "y": 8 },
+        "type": "stat",
+        "title": "Average Response Time",
+        "targets": [
+          {
+            "expr": "avg(rate(monitor_latency_seconds_sum[5m]) / rate(monitor_latency_seconds_count[5m]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 0.5, "color": "yellow" },
+                { "value": 1, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "gridPos": { "h": 6, "w": 8, "x": 16, "y": 8 },
+        "type": "stat",
+        "title": "P95 Latency",
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(monitor_latency_seconds_bucket[5m]))",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "thresholds" },
+            "unit": "s",
+            "thresholds": {
+              "steps": [
+                { "value": null, "color": "green" },
+                { "value": 1, "color": "yellow" },
+                { "value": 2, "color": "red" }
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 5,
+        "gridPos": { "h": 8, "w": 24, "x": 0, "y": 14 },
+        "type": "timeseries",
+        "title": "Response Time by Target",
+        "targets": [
+          {
+            "expr": "rate(monitor_latency_seconds_sum[5m]) / rate(monitor_latency_seconds_count[5m])",
+            "legendFormat": "{{target}}",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "color": { "mode": "palette-classic" },
+            "unit": "s"
+          }
+        }
+      }
+    ]
+  }
+}
