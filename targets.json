@@ -1,0 +1,8 @@
+[
+  {
+    "name": "Github",
+    "url": "https://github.com",
+    "interval": 10,
+    "alert_threshold_ms": 1500
+  }
+]

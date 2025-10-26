@@ -29,13 +29,6 @@ impl Config {
         Ok(Self { addr, targets })
     }
 
-    /// Load config from a YAML file
-    pub fn from_file(path: &str) -> Result<Self> {
-        let contents = std::fs::read_to_string(path)?;
-        let config: Self = serde_yaml::from_str(&contents)?;
-        Ok(config)
-    }
-
     /// Helper to load just targets from file
     fn load_targets_from_file(path: &str) -> Result<Vec<Target>> {
         #[derive(Deserialize)]

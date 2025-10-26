@@ -4,22 +4,37 @@ mod routes;
 
 use routes::targets::{get_targets, add_target, remove_target};
 
-use crate::config::Config;
+use crate::config::{Config, Target};
 use crate::monitor::Monitor;
 use tokio::net::TcpListener;
 use axum::{routing::{get, delete}, Router};
 use std::sync::Arc;
+use std::path::PathBuf;
+use tokio::fs;
+use tracing::{info, error};
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let file_path = PathBuf::from("targets.json");
     // Initialize tracing
     tracing_subscriber::fmt::init();
 
     // Load configuration
     let config = Config::from_env()?;
 
-    // Create monitor with targets from config
-    let monitor = Arc::new(Monitor::new(config.targets.clone()));
+    let targets: Vec<Target> = if file_path.exists() {
+        let data = fs::read_to_string(&file_path).await?;
+        serde_json::from_str(&data).unwrap_or_else(|e| {
+            error!("Failed to parse JSON: {}", e);
+            Vec::new()
+        })
+    } else {
+        info!("No existing targets.json found. Creating new one...");
+        fs::write(&file_path, "[]").await?;
+        Vec::new()
+    };
+
+    let monitor = Arc::new(Monitor::new(targets, file_path));
 
     let m = monitor.clone();
     tokio::spawn(async move {

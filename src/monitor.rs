@@ -5,17 +5,21 @@ use tokio::time::{sleep, Duration};
 use tokio::sync::RwLock;
 use tracing::{info, warn, error};
 use std::sync::Arc;
-use anyhow::Result;
+use std::fs;
+use serde_json::to_string_pretty;
+use anyhow::{Result, Context};
+use std::path::PathBuf;
 
 pub struct Monitor {
     client: Client,
     request_count: IntCounterVec,
     latency_histogram: HistogramVec,
     pub targets: Arc<RwLock<Vec<Target>>>,
+    pub file_path: PathBuf,
 }
 
 impl Monitor {
-    pub fn new(targets: Vec<Target>) -> Self {
+    pub fn new(targets: Vec<Target>, file_path: impl Into<PathBuf>) -> Self {
         Self {
             client: Client::new(),
             request_count: register_int_counter_vec!(
@@ -29,6 +33,7 @@ impl Monitor {
                 &["target"]
             ).unwrap(),
             targets: Arc::new(RwLock::new(targets)),
+            file_path: file_path.into(),
         }
     }
 
@@ -36,13 +41,23 @@ impl Monitor {
         self.targets.read().await.clone()
     }
 
-    pub async fn add_target(&self, target: Target) -> Result<(), String> {
+    pub async fn add_target(&self, target: Target) -> Result<()> {
         let mut targets = self.targets.write().await;
+
         if targets.iter().any(|t| t.name == target.name) {
-            error!("Target '{}' already exists", target.name);
-            return Err(format!("Target '{}' already exists", target.name));
+            anyhow::bail!("Target '{}' already exists", target.name);
         }
+
         targets.push(target);
+
+        // Persist targets to JSON file
+        let json = to_string_pretty(&*targets)
+            .context("Failed to serialize targets to JSON")?;
+
+        let file_path: PathBuf = self.file_path.clone();
+        fs::write(&file_path, json)
+            .context(format!("Failed to write targets to file {:?}", file_path))?;
+
         Ok(())
     }
 
