@@ -1,36 +1,39 @@
+mod config;
+mod monitor;
 
-use axum::{
-    routing::get,
-    Router,
-};
+use crate::config::Config;
+use crate::monitor::Monitor;
+use tokio::net::TcpListener;
+use axum::{routing::get, Router};
+use std::sync::Arc;
 
 #[tokio::main]
-async fn main() {
-    // Create the router with /metrics endpoint
-    let app = Router::new()
-        .route("/metrics", get(metrics_handler))
-        .route("/", get(root_handler));
+async fn main() -> anyhow::Result<()> {
+    // Initialize tracing
+    tracing_subscriber::fmt::init();
 
-    // Define the address to bind to
-    
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000")
-        .await
-        .unwrap();
+    // Load configuration
+    let config = Config::from_env()?;
 
-    println!("🚀 Server running on http://localhost:3000");
-    println!("📊 Metrics available at http://localhost:3000/metrics");
+    // Create monitor with targets from config
+    let monitor = Arc::new(Monitor::new(config.targets.clone()));
 
-    // Start the server
-    axum::serve(listener, app)
-        .await
-        .unwrap();
-}
+    let m = monitor.clone();
+    tokio::spawn(async move {
+        m.run().await;
+    });
 
-// Handler function for /metrics endpoint
-async fn metrics_handler() -> & 'static str {
-    "Hello Metrics"
-}
+    // Create API server to expose /metrics
+    let app = Router::new().route("/metrics", get({
+        let monitor = monitor.clone();
+        move || async move {
+            monitor.gather_metrics()
+        }
+    }));
 
-async fn root_handler() -> &'static str {
-    "Hello, World!"
+    let listener = TcpListener::bind(&config.addr).await?;
+    println!("🚀 Metrics server running on http://{}", config.addr);
+
+    axum::serve(listener, app).await?;
+    Ok(())
 }

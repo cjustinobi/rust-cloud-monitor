@@ -1,0 +1,9 @@
+targets:
+  - name: "Africinnovate"
+    url: "https://africinnovate.com"
+    interval: 10
+    alert_threshold_ms: 1500
+  - name: "Example"
+    url: "https://example.com"
+    interval: 15
+    alert_threshold_ms: 1200
